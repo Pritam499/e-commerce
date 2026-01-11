@@ -1,0 +1,77 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+# Keep .env.example for reference (must be before *.env pattern)
+!.env.example
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+*.env
+*.env.docker
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Database
+postgres-database/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Docker
+docker-entrypoint-fix.sh
+fix-*.sh
+
+# Misc
+.cache/
+.parcel-cache/
+.next/
+out/
+
+!.env.example

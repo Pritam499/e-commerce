@@ -1,0 +1,40 @@
+{
+  "name": "ecommerce-backend",
+  "version": "1.0.0",
+  "description": "E-commerce store backend API",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "dotenv -e .env.development -- tsx watch --enable-source-maps src/index.ts",
+    "type-check": "tsc --noEmit",
+    "build": "tsc",
+    "start": "dotenv -e .env.development -- node dist/index.js",
+    "seed": "dotenv -e .env.development -- tsx src/seed.ts",
+    "drizzle-kit": "drizzle-kit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "dotenv -e .env.development -- tsx src/scripts/migrate.ts",
+    "db:push": "drizzle-kit push",
+    "with-dev-env": "dotenv -e .env.development --",
+    "with-prod-env": "dotenv -e .env.production --",
+    "test": "echo \"Tests are structured but require test database setup. See test files for structure.\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@paralleldrive/cuid2": "^3.0.6",
+    "dotenv": "^16.3.1",
+    "drizzle-orm": "^0.44.7",
+    "fastify": "^4.25.2",
+    "pg": "^8.11.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/pg": "^8.10.9",
+    "dotenv-cli": "^8.0.0",
+    "drizzle-kit": "^0.31.6",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}
