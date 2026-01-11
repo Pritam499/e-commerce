@@ -48,7 +48,7 @@ A full-stack e-commerce application with cart, checkout, and intelligent discoun
 
 ## Environment Files Quick Reference
 
-### Backend: `uniblox-io/backend/.env.development`
+### Backend: `backend/.env.development`
 
 Copy from `.env.example` or create with:
 
@@ -58,7 +58,7 @@ PORT=3001
 NTH_ORDER_DISCOUNT=3
 ```
 
-### Frontend: `uniblox-io/frontend/.env.local`
+### Frontend: `frontend/.env.local`
 
 Copy from `.env.example` or create with:
 
@@ -78,7 +78,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 #### Step 1: Install Dependencies
 
 ```bash
-cd uniblox-io/backend
+cd backend
 pnpm i
 ```
 
@@ -89,14 +89,14 @@ Create `.env.development` file in the `backend` directory:
 **Option 1: Copy from .env.example (Recommended)**
 
 ```bash
-cd uniblox-io/backend
+cd backend
 cp .env.example .env.development
 ```
 
 **Option 2: Using command line**
 
 ```bash
-cd uniblox-io/backend
+cd backend
 cat > .env.development << EOF
 DATABASE_URL=postgresql://postgres:postgres@localhost:5435/ecommerce
 PORT=3001
@@ -106,7 +106,7 @@ EOF
 
 **Option 3: Manually create the file**
 
-Create a file named `.env.development` in `uniblox-io/backend/` and paste the following:
+Create a file named `.env.development` in `backend/` and paste the following:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5435/ecommerce
@@ -123,7 +123,7 @@ NTH_ORDER_DISCOUNT=3
 #### Step 3: Start Docker Containers
 
 ```bash
-cd uniblox-io/backend
+cd backend
 docker compose up -d
 ```
 
@@ -132,7 +132,7 @@ This starts PostgreSQL on port `5435`.
 #### Step 4: Run Database Migrations
 
 ```bash
-cd uniblox-io/backend
+cd backend
 pnpm with-dev-env pnpm db:push
 ```
 
@@ -141,7 +141,7 @@ This creates all database tables with the current schema.
 #### Step 5: Seed Database
 
 ```bash
-cd uniblox-io/backend
+cd backend
 pnpm with-dev-env pnpm seed
 ```
 
@@ -153,7 +153,7 @@ This seeds:
 #### Step 6: Start Development Server
 
 ```bash
-cd uniblox-io/backend
+cd backend
 pnpm dev
 ```
 
@@ -164,7 +164,7 @@ The backend API will be available at `http://localhost:3001`
 #### Step 1: Install Dependencies
 
 ```bash
-cd uniblox-io/frontend
+cd frontend
 pnpm i
 ```
 
@@ -175,14 +175,14 @@ Create `.env.local` file in the `frontend` directory:
 **Option 1: Copy from .env.example (Recommended)**
 
 ```bash
-cd uniblox-io/frontend
+cd frontend
 cp .env.example .env.local
 ```
 
 **Option 2: Using command line**
 
 ```bash
-cd uniblox-io/frontend
+cd frontend
 cat > .env.local << EOF
 HOST=localhost
 PORT=3000
@@ -193,7 +193,7 @@ EOF
 
 **Option 3: Manually create the file**
 
-Create a file named `.env.local` in `uniblox-io/frontend/` and paste the following:
+Create a file named `.env.local` in `frontend/` and paste the following:
 
 ```env
 HOST=localhost
@@ -214,7 +214,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 #### Step 3: Start Development Server
 
 ```bash
-cd uniblox-io/frontend
+cd frontend
 pnpm dev
 ```
 
@@ -224,7 +224,7 @@ The frontend will be available at `http://localhost:3000`
 
 ```bash
 # Backend
-cd uniblox-io/backend
+cd backend
 pnpm i
 # Create .env.development file (see Step 2 above)
 docker compose up -d
@@ -233,7 +233,7 @@ pnpm with-dev-env pnpm seed
 pnpm dev
 
 # Frontend (in a new terminal)
-cd uniblox-io/frontend
+cd frontend
 pnpm i
 # Create .env.local file (see Step 2 above)
 pnpm dev
@@ -437,11 +437,11 @@ Admin can manually generate a discount code via API. The same conditions apply, 
 **Quick Setup:**
 
 ```bash
-cd uniblox-io/backend
+cd backend
 cp .env.example .env.development
 ```
 
-**Or create manually** `uniblox-io/backend/.env.development`:
+**Or create manually** `backend/.env.development`:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5435/ecommerce
@@ -460,11 +460,11 @@ NTH_ORDER_DISCOUNT=3
 **Quick Setup:**
 
 ```bash
-cd uniblox-io/frontend
+cd frontend
 cp .env.example .env.local
 ```
 
-**Or create manually** `uniblox-io/frontend/.env.local`:
+**Or create manually** `frontend/.env.local`:
 
 ```env
 HOST=localhost
@@ -493,7 +493,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 ## Project Structure
 
 ```
-uniblox-io/
+.
 ├── backend/
 │   ├── src/
 │   │   ├── drizzle/
@@ -514,12 +514,14 @@ uniblox-io/
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   └── package.json
-└── frontend/
-    ├── src/
-    │   ├── app/                   # Next.js pages
-    │   ├── components/           # React components
-    │   └── lib/                  # API client
-    └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── app/                   # Next.js pages
+│   │   ├── components/           # React components
+│   │   └── lib/                  # API client
+│   └── package.json
+├── README.md
+└── system.md
 ```
 
 ## Key Features

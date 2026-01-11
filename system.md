@@ -302,7 +302,7 @@ Generate Code      Return Silently
 ## Project Structure
 
 ```
-uniblox-io/
+.
 ├── backend/
 │   ├── src/
 │   │   ├── drizzle/
