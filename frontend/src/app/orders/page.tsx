@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { getOrders } from "@/src/lib/api";
 import Link from "next/link";
+import type { Order } from "@/src/lib/types";
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -18,8 +19,8 @@ export default function OrdersPage() {
       setLoading(true);
       const response = await getOrders();
       setOrders(response.data || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -109,7 +110,7 @@ export default function OrdersPage() {
 
                   <div className="p-6">
                     <div className="space-y-4">
-                      {order.orderItems?.map((item: any) => (
+                      {order.orderItems?.map((item) => (
                         <div
                           key={item.id}
                           className="flex items-center gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"

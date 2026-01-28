@@ -42,7 +42,7 @@ async function seed() {
     );
 
     // Create categories
-    const categoryMap = new Map<string, number>();
+    const categoryMap = new Map<string, string>();
     for (const catName of uniqueCategories) {
       // Check if category already exists
       const existing = await db.query.categories.findMany({
@@ -88,6 +88,7 @@ async function seed() {
             price: product.price.toString(),
             stock: Math.floor(Math.random() * 100) + 10, // Random stock between 10-110
             image: product.image,
+            rating: (Math.random() * 4 + 1).toFixed(1), // Random rating between 1.0-5.0
           });
           insertedCount++;
         }
@@ -122,6 +123,31 @@ async function seedFallback() {
     .returning();
 
   console.log(`Inserted ${insertedCategories.length} categories (fallback)`);
+
+  // Insert some sample products
+  const sampleProducts = [
+    { name: "Wireless Headphones", category: "Electronics", price: "99.99", description: "High-quality wireless headphones", stock: 50, rating: "4.5" },
+    { name: "Smartphone Case", category: "Electronics", price: "19.99", description: "Protective case for smartphones", stock: 100, rating: "4.2" },
+    { name: "T-Shirt", category: "Clothing", price: "29.99", description: "Comfortable cotton t-shirt", stock: 75, rating: "4.0" },
+    { name: "Coffee Maker", category: "Home & Kitchen", price: "79.99", description: "Automatic drip coffee maker", stock: 30, rating: "4.3" },
+    { name: "Programming Book", category: "Books", price: "49.99", description: "Learn programming fundamentals", stock: 20, rating: "4.7" },
+  ];
+
+  for (const prod of sampleProducts) {
+    const category = insertedCategories.find(c => c.name === prod.category);
+    if (category) {
+      await db.insert(products).values({
+        categoryId: category.id,
+        name: prod.name,
+        description: prod.description,
+        price: prod.price,
+        stock: prod.stock,
+        rating: prod.rating,
+      });
+    }
+  }
+
+  console.log(`Inserted ${sampleProducts.length} sample products (fallback)`);
 }
 
 seed();

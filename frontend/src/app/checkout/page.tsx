@@ -5,17 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getCart, checkout, getAvailableDiscountCodes } from "@/src/lib/api";
 import Link from "next/link";
 import EmptyState from "@/src/components/EmptyState";
+import type { CartItem, DiscountCode } from "@/src/lib/types";
 
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [availableDiscounts, setAvailableDiscounts] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [availableDiscounts, setAvailableDiscounts] = useState<DiscountCode[]>([]);
   const [selectedDiscount, setSelectedDiscount] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [orderId, setOrderId] = useState<number | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const discountParam = searchParams.get("discount");
@@ -34,17 +35,18 @@ function CheckoutContent() {
       if (response.data.length === 0) {
         router.push("/cart");
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
   const loadDiscountCodes = async () => {
     try {
       const response = await getAvailableDiscountCodes();
-      setAvailableDiscounts(response.data || []);
-      if (response.data && response.data.length > 0 && !selectedDiscount) {
-        setSelectedDiscount(response.data[0].code);
+      const discounts = response.data || [];
+      setAvailableDiscounts(discounts);
+      if (discounts.length > 0 && !selectedDiscount) {
+        setSelectedDiscount(discounts[0].code);
       }
     } catch (err) {
       // Silently fail
@@ -57,12 +59,12 @@ function CheckoutContent() {
     try {
       const result = await checkout(selectedDiscount || undefined);
       setSuccess(true);
-      setOrderId(result.data.orderNumber || result.data.id);
+      setOrderId(result.data?.orderNumber || result.data?.id || null);
       setTimeout(() => {
         router.push("/orders");
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || "Checkout failed");
+    } catch (err) {
+      setError((err as Error).message || "Checkout failed");
     } finally {
       setLoading(false);
     }
@@ -74,7 +76,7 @@ function CheckoutContent() {
 
   const discountAmount =
     selectedDiscount && availableDiscounts.length > 0
-      ? (subtotal * (availableDiscounts[0].discountPercentage || 0)) / 100
+      ? (subtotal * (availableDiscounts[0].discountPercentage)) / 100
       : 0;
 
   const total = subtotal - discountAmount;

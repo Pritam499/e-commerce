@@ -15,7 +15,14 @@
     "db:push": "drizzle-kit push",
     "with-dev-env": "dotenv -e .env.development --",
     "with-prod-env": "dotenv -e .env.production --",
-    "test": "echo \"Tests are structured but require test database setup. See test files for structure.\""
+    "test": "echo \"Tests are structured but require test database setup. See test files for structure.\"",
+    "test:race-conditions": "dotenv -e .env.development -- tsx src/scripts/test-race-conditions.ts",
+    "demo:race-conditions": "dotenv -e .env.development -- tsx src/scripts/demo-race-conditions.ts",
+    "test:payment-integration": "dotenv -e .env.development -- tsx src/scripts/test-payment-integration.ts",
+    "test:cart-abandonment": "dotenv -e .env.development -- tsx src/scripts/test-cart-abandonment.ts",
+    "test:async-order-processing": "dotenv -e .env.development -- tsx src/scripts/test-async-order-processing.ts",
+    "test:event-driven-architecture": "dotenv -e .env.development -- tsx src/scripts/test-event-driven-architecture.ts",
+    "test:database-performance": "dotenv -e .env.development -- tsx src/scripts/test-database-performance.ts"
   },
   "keywords": [],
   "author": "",
@@ -23,10 +30,13 @@
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@paralleldrive/cuid2": "^3.0.6",
+    "@types/redis": "^4.0.10",
+    "bullmq": "^5.67.2",
     "dotenv": "^16.3.1",
     "drizzle-orm": "^0.44.7",
     "fastify": "^4.25.2",
     "pg": "^8.11.3",
+    "redis": "^5.10.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

@@ -11,14 +11,15 @@ import {
 } from "@/src/lib/api";
 import Link from "next/link";
 import CartPreview from "@/src/components/CartPreview";
+import type { Product, CartItem } from "@/src/lib/types";
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const productId = parseInt(params.id as string);
+  const productId = params.id as string;
 
-  const [product, setProduct] = useState<any>(null);
-  const [similarProducts, setSimilarProducts] = useState<any[]>([]);
-  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [cartLoading, setCartLoading] = useState(false);
   const [error, setError] = useState("");
@@ -46,8 +47,8 @@ export default function ProductDetailPage() {
           // Silently fail
         }
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -62,8 +63,8 @@ export default function ProductDetailPage() {
     }
   };
 
-  const getCartQuantity = (pId: number) => {
-    const item = cartItems.find((item: any) => item.productId === pId);
+  const getCartQuantity = (pId: string) => {
+    const item = cartItems.find((item) => item.productId === pId);
     return item ? item.quantity : 0;
   };
 
@@ -73,8 +74,8 @@ export default function ProductDetailPage() {
       await addToCart(productId, 1);
       await loadCart();
       setShowCartPreview(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setCartLoading(false);
     }
@@ -82,7 +83,7 @@ export default function ProductDetailPage() {
 
   const handleUpdateQuantity = async (newQuantity: number) => {
     const cartItem = cartItems.find(
-      (item: any) => item.productId === productId
+      (item) => item.productId === productId
     );
     if (!cartItem) {
       await handleAddToCart();
@@ -96,32 +97,32 @@ export default function ProductDetailPage() {
       if (newQuantity > cartItem.quantity) {
         setShowCartPreview(true);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setCartLoading(false);
     }
   };
 
-  const handleAddSimilarToCart = async (similarProductId: number) => {
+  const handleAddSimilarToCart = async (similarProductId: string) => {
     setCartLoading(true);
     try {
       await addToCart(similarProductId, 1);
       await loadCart();
       setShowCartPreview(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setCartLoading(false);
     }
   };
 
   const handleUpdateSimilarQuantity = async (
-    similarProductId: number,
+    similarProductId: string,
     newQuantity: number
   ) => {
     const cartItem = cartItems.find(
-      (item: any) => item.productId === similarProductId
+      (item) => item.productId === similarProductId
     );
     if (!cartItem) {
       await handleAddSimilarToCart(similarProductId);
@@ -132,8 +133,8 @@ export default function ProductDetailPage() {
     try {
       await updateCartItem(cartItem.id, newQuantity);
       await loadCart();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setCartLoading(false);
     }

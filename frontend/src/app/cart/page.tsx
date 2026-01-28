@@ -14,18 +14,25 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/src/components/EmptyState";
+import type {
+  CartItem,
+  DiscountCode,
+  DiscountPreviewResponse,
+  DiscountEligibilityResponse,
+  Product,
+} from "@/src/lib/types";
 
 export default function CartPage() {
   const router = useRouter();
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [availableDiscounts, setAvailableDiscounts] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [availableDiscounts, setAvailableDiscounts] = useState<DiscountCode[]>([]);
   const [selectedDiscount, setSelectedDiscount] = useState<string>("");
   const [appliedDiscount, setAppliedDiscount] = useState<string>("");
-  const [discountPreview, setDiscountPreview] = useState<any>(null);
-  const [loading, setLoading] = useState<{ [key: number]: boolean }>({});
+  const [discountPreview, setDiscountPreview] = useState<DiscountPreviewResponse | null>(null);
+  const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
   const [error, setError] = useState("");
   const [discountMessage, setDiscountMessage] = useState("");
-  const [similarProducts, setSimilarProducts] = useState<any[]>([]);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [isEligibleForDiscount, setIsEligibleForDiscount] = useState(false);
@@ -39,7 +46,7 @@ export default function CartPage() {
   const checkEligibility = async () => {
     try {
       const response = await checkDiscountEligibility();
-      setIsEligibleForDiscount(response.data?.eligible || false);
+      setIsEligibleForDiscount(response.eligible || false);
     } catch (err) {
       // Silently fail
       setIsEligibleForDiscount(false);
@@ -59,17 +66,18 @@ export default function CartPage() {
     try {
       const response = await getCart();
       setCartItems(response.data || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     }
   };
 
   const loadDiscountCodes = async () => {
     try {
       const response = await getAvailableDiscountCodes();
-      setAvailableDiscounts(response.data || []);
-      if (response.data && response.data.length > 0) {
-        setSelectedDiscount(response.data[0].code);
+      const discounts = response.data || [];
+      setAvailableDiscounts(discounts);
+      if (discounts.length > 0) {
+        setSelectedDiscount(discounts[0].code);
       }
     } catch (err) {
       // Silently fail
@@ -82,7 +90,7 @@ export default function CartPage() {
     setLoadingSimilar(true);
     try {
       // Get unique categories from cart items
-      const categories = new Set<number>();
+      const categories = new Set<string>();
       cartItems.forEach((item) => {
         const catId = item.product?.categoryId || item.product?.category?.id;
         if (catId) categories.add(catId);
@@ -93,9 +101,9 @@ export default function CartPage() {
       if (firstCategory) {
         // Get product IDs to exclude
         const excludeIds = cartItems.map((item) => item.productId);
-        const similar = await fetchSimilarProducts(firstCategory, 0, 8);
+        const similar = await fetchSimilarProducts(firstCategory, excludeIds[0] || "", 8);
         // Filter out products already in cart
-        const filtered = similar.filter((p: any) => !excludeIds.includes(p.id));
+        const filtered = similar.filter((p) => !excludeIds.includes(p.id));
         setSimilarProducts(filtered.slice(0, 4));
       }
     } catch (err) {
@@ -105,23 +113,23 @@ export default function CartPage() {
     }
   };
 
-  const getCartQuantity = (productId: number) => {
-    const item = cartItems.find((item: any) => item.productId === productId);
+  const getCartQuantity = (productId: string) => {
+    const item = cartItems.find((item) => item.productId === productId);
     return item ? item.quantity : 0;
   };
 
-  const handleAddSimilarToCart = async (productId: number) => {
+  const handleAddSimilarToCart = async (productId: string) => {
     try {
       await addToCart(productId, 1);
       await loadCart();
-    } catch (err: any) {
-      setError(err.message || "Failed to add product to cart");
+    } catch (err) {
+      setError((err as Error).message || "Failed to add product to cart");
     }
   };
 
 
   const handleUpdateQuantity = async (
-    cartItemId: number,
+    cartItemId: string,
     newQuantity: number
   ) => {
     setLoading({ ...loading, [cartItemId]: true });
@@ -134,8 +142,8 @@ export default function CartPage() {
       }
       await loadCart();
       setError(""); // Clear error on success
-    } catch (err: any) {
-      const errorMessage = err.message || "Failed to update cart item";
+    } catch (err) {
+      const errorMessage = (err as Error).message || "Failed to update cart item";
       setError(errorMessage);
       // Auto-clear error after 5 seconds
       setTimeout(() => setError(""), 5000);
@@ -149,35 +157,35 @@ export default function CartPage() {
   }, 0);
 
   // Use preview discount if applied, otherwise calculate from available discounts
-  const discountAmount = discountPreview?.valid
-    ? discountPreview.discountAmount
+  const discountAmount = discountPreview?.discountAmount
+    ? parseFloat(discountPreview.discountAmount)
     : appliedDiscount && availableDiscounts.length > 0
-    ? (subtotal * (availableDiscounts.find((d: any) => d.code === appliedDiscount)?.discountPercentage || 0)) / 100
+    ? (subtotal * (availableDiscounts.find((d) => d.code === appliedDiscount)?.discountPercentage || 0)) / 100
     : 0;
 
-  const total = discountPreview?.valid
-    ? discountPreview.total
+  const total = discountPreview?.finalTotal
+    ? parseFloat(discountPreview.finalTotal)
     : subtotal - discountAmount;
 
   const handleApplyDiscount = async () => {
     if (!selectedDiscount || subtotal === 0) return;
-    
+
     setApplyingDiscount(true);
     setError("");
     try {
       const result = await previewDiscount(selectedDiscount, subtotal);
-      if (result.success && result.data?.valid) {
+      if (result.valid) {
         setAppliedDiscount(selectedDiscount);
-        setDiscountPreview(result.data);
+        setDiscountPreview(result);
         setDiscountMessage(`Discount "${selectedDiscount}" applied successfully!`);
         setTimeout(() => setDiscountMessage(""), 3000);
       } else {
-        setError(result.data?.message || "Invalid discount code");
+        setError(result.message || "Invalid discount code");
         setDiscountPreview(null);
         setAppliedDiscount("");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to apply discount code");
+    } catch (err) {
+      setError((err as Error).message || "Failed to apply discount code");
       setDiscountPreview(null);
       setAppliedDiscount("");
     } finally {
@@ -393,7 +401,7 @@ export default function CartPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                         >
                           <option value="">Select a code...</option>
-                          {availableDiscounts.map((discount: any) => (
+                          {availableDiscounts.map((discount: DiscountCode) => (
                             <option key={discount.id} value={discount.code}>
                               {discount.code} - {discount.discountPercentage}% off
                             </option>
@@ -414,7 +422,7 @@ export default function CartPage() {
                               </span>
                             </div>
                             <div className="text-xs text-green-50">
-                              Save {discountPreview?.discountPercentage || availableDiscounts.find((d: any) => d.code === appliedDiscount)?.discountPercentage}% ($
+                              Save {availableDiscounts.find((d) => d.code === appliedDiscount)?.discountPercentage || 0}% ($
                               {discountAmount.toFixed(2)})
                             </div>
                           </div>
@@ -455,7 +463,7 @@ export default function CartPage() {
                   {discountAmount > 0 && appliedDiscount && (
                     <div className="flex justify-between text-green-600">
                       <span>
-                        Discount ({discountPreview?.discountPercentage || availableDiscounts.find((d: any) => d.code === appliedDiscount)?.discountPercentage}%)
+                        Discount ({availableDiscounts.find((d) => d.code === appliedDiscount)?.discountPercentage || 0}%)
                       </span>
                       <span>-${discountAmount.toFixed(2)}</span>
                     </div>
@@ -496,7 +504,7 @@ export default function CartPage() {
               {similarProducts.map((product) => {
                 const cartQuantity = getCartQuantity(product.id);
                 const cartItem = cartItems.find(
-                  (item: any) => item.productId === product.id
+                  (item) => item.productId === product.id
                 );
                 return (
                   <div

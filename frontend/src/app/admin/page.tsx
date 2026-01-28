@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { generateDiscountCode, getAdminStats } from "@/src/lib/api";
+import type { AdminStats, DiscountCode } from "@/src/lib/types";
 
 export default function AdminPage() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [discountCode, setDiscountCode] = useState("");
@@ -14,8 +15,8 @@ export default function AdminPage() {
     try {
       const response = await getAdminStats();
       setStats(response.data);
-    } catch (error: any) {
-      setMessage(`Error loading stats: ${error.message}`);
+    } catch (error) {
+      setMessage(`Error loading stats: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -31,11 +32,11 @@ export default function AdminPage() {
     setDiscountCode("");
     try {
       const result = await generateDiscountCode();
-      setDiscountCode(result.data.code);
+      setDiscountCode(result.data?.code || "");
       setMessage("Discount code generated successfully!");
       loadStats();
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
+    } catch (error) {
+      setMessage(`Error: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -156,7 +157,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {stats.discountCodes.map((code: any) => (
+                  {stats.discountCodes.map((code: DiscountCode) => (
                     <tr key={code.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <span className="font-mono font-semibold text-gray-900">

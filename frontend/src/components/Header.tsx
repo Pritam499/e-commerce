@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { getCart } from "@/src/lib/api";
+import type { CartItem } from "@/src/lib/types";
 
 export default function Header() {
   const [cartCount, setCartCount] = useState(0);
@@ -27,7 +28,7 @@ export default function Header() {
       const response = await getCart();
       const items = response.data || [];
       const totalItems = items.reduce(
-        (sum: number, item: any) => sum + item.quantity,
+        (sum: number, item: CartItem) => sum + item.quantity,
         0
       );
       setPrevCartCount(cartCount);
