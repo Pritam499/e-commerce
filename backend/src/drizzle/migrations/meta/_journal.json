@@ -8,6 +8,20 @@
       "when": 1768150825988,
       "tag": "0000_bright_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769593180426,
+      "tag": "0001_fearless_norrin_radd",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769597344924,
+      "tag": "0002_greedy_cobalt_man",
+      "breakpoints": true
     }
   ]
 }

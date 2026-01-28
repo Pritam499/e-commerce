@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { generateDiscountCode, getAdminStats } from "@/src/lib/api";
-import type { AdminStats, DiscountCode } from "@/src/lib/types";
+import ImageUpload from "@/src/components/ImageUpload";
 
 export default function AdminPage() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [discountCode, setDiscountCode] = useState("");
@@ -15,8 +15,8 @@ export default function AdminPage() {
     try {
       const response = await getAdminStats();
       setStats(response.data);
-    } catch (error) {
-      setMessage(`Error loading stats: ${(error as Error).message}`);
+    } catch (error: any) {
+      setMessage(`Error loading stats: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -32,11 +32,11 @@ export default function AdminPage() {
     setDiscountCode("");
     try {
       const result = await generateDiscountCode();
-      setDiscountCode(result.data?.code || "");
+      setDiscountCode(result.data.code);
       setMessage("Discount code generated successfully!");
       loadStats();
-    } catch (error) {
-      setMessage(`Error: ${(error as Error).message}`);
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -71,6 +71,29 @@ export default function AdminPage() {
             </p>
           </div>
         )}
+
+        {/* Image Upload Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Upload Images
+          </h2>
+          <p className="text-gray-600 mb-4 text-sm">
+            Upload product images that will be optimized and stored in AWS S3 with CDN delivery.
+            Images are automatically converted to WebP format and multiple sizes are generated.
+          </p>
+          <ImageUpload
+            onUploadComplete={(images) => {
+              setMessage(`Successfully uploaded ${images.length} image${images.length !== 1 ? 's' : ''}!`);
+              loadStats();
+            }}
+            onUploadError={(error) => setMessage(`Upload error: ${error}`)}
+            maxFiles={10}
+            maxFileSize={5}
+            showPreview={true}
+            allowMultiple={true}
+            className="mb-4"
+          />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Generate Discount Code */}
@@ -157,7 +180,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {stats.discountCodes.map((code: DiscountCode) => (
+                  {stats.discountCodes.map((code: any) => (
                     <tr key={code.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <span className="font-mono font-semibold text-gray-900">

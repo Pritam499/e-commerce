@@ -1,0 +1,85 @@
+# Vector configuration for advanced log processing
+
+data_dir = "/var/lib/vector"
+
+# Ingest logs from files
+[sources.ecommerce_logs]
+type = "file"
+include = ["/var/log/ecommerce/*.log"]
+read_from = "beginning"
+
+# Parse JSON logs
+[transforms.parse_json]
+type = "json_parser"
+inputs = ["ecommerce_logs"]
+drop_invalid = true
+
+# Add structured fields
+[transforms.add_fields]
+type = "add_fields"
+inputs = ["parse_json"]
+fields.service = "ecommerce-api"
+fields.source = "vector"
+
+# Filter and route logs
+[transforms.route_logs]
+type = "route"
+inputs = ["add_fields"]
+
+[transforms.route_logs.route.error_logs]
+type = "check_fields"
+"level.equals" = "error"
+
+[transforms.route_logs.route.security_logs]
+type = "check_fields"
+"level.equals" = "security"
+
+[transforms.route_logs.route.api_logs]
+type = "check_fields"
+"level.equals" = "info"
+
+# Sample high-volume logs
+[transforms.sample_logs]
+type = "sample"
+inputs = ["route_logs.api_logs"]
+rate = 10  # 10% sampling
+
+# Enrich with metadata
+[transforms.enrich_metadata]
+type = "add_fields"
+inputs = ["route_logs.error_logs", "route_logs.security_logs", "sample_logs"]
+fields.processed_by = "vector"
+fields.processed_at = "{{ now() }}"
+
+# Output to Loki
+[sinks.loki]
+type = "loki"
+inputs = ["enrich_metadata"]
+endpoint = "http://loki:3100"
+encoding.codec = "json"
+
+[sinks.loki.labels]
+service = "{{ service }}"
+level = "{{ level }}"
+hostname = "{{ hostname }}"
+environment = "{{ environment }}"
+
+# Output to console for debugging
+[sinks.console]
+type = "console"
+inputs = ["route_logs.error_logs"]
+encoding.codec = "json"
+
+# Metrics for Vector itself
+[sinks.prometheus]
+type = "prometheus_exporter"
+inputs = ["enrich_metadata"]
+address = "0.0.0.0:9091"
+
+# Health check endpoint
+[sinks.healthcheck]
+type = "http"
+inputs = []
+uri = "http://loki:3100/ready"
+method = "get"
+healthcheck.enabled = false

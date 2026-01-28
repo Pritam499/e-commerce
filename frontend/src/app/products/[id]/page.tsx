@@ -11,7 +11,11 @@ import {
 } from "@/src/lib/api";
 import Link from "next/link";
 import CartPreview from "@/src/components/CartPreview";
+<<<<<<< HEAD
 import type { Product, CartItem } from "@/src/lib/types";
+=======
+import LazyImage, { OptimizedImage } from "@/src/components/LazyImage";
+>>>>>>> 414560a (Fix: auth with refresh token , added monitoring and other fixes)
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -179,16 +183,53 @@ export default function ProductDetailPage() {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Product Image */}
+          {/* Product Images */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            {product.image ? (
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-auto rounded-lg"
-              />
+            {product.images && Object.keys(product.images).length > 0 ? (
+              <div className="space-y-4">
+                {/* Main image */}
+                <div className="aspect-square">
+                  <OptimizedImage
+                    baseSrc={product.images[Object.keys(product.images)[0]]?.urls?.medium ||
+                             product.images[Object.keys(product.images)[0]]?.urls?.large ||
+                             product.images[Object.keys(product.images)[0]]?.urls?.original ||
+                             product.image}
+                    variants={product.images[Object.keys(product.images)[0]]?.urls}
+                    alt={product.name}
+                    className="w-full h-full rounded-lg"
+                    priority
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                </div>
+
+                {/* Thumbnail gallery */}
+                {Object.keys(product.images).length > 1 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {Object.entries(product.images).slice(0, 4).map(([key, imageData]: [string, any]) => (
+                      <div key={key} className="aspect-square cursor-pointer border-2 border-transparent hover:border-blue-500 rounded transition-colors">
+                        <LazyImage
+                          src={imageData.urls?.thumbnail || imageData.urls?.medium || imageData.urls?.original}
+                          alt={`${product.name} thumbnail`}
+                          className="w-full h-full rounded object-cover"
+                          sizes="25vw"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : product.image ? (
+              <div className="aspect-square">
+                <LazyImage
+                  src={product.image}
+                  alt={product.name}
+                  className="w-full h-full rounded-lg"
+                  priority
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+              </div>
             ) : (
-              <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+              <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
                 No Image
               </div>
             )}
@@ -318,11 +359,22 @@ export default function ProductDetailPage() {
                   >
                     <Link href={`/products/${similar.id}`}>
                       <div className="aspect-square bg-gray-100 p-4 flex items-center justify-center">
-                        {similar.image ? (
-                          <img
+                        {similar.images && Object.keys(similar.images).length > 0 ? (
+                          <OptimizedImage
+                            baseSrc={similar.images[Object.keys(similar.images)[0]]?.urls?.medium ||
+                                     similar.images[Object.keys(similar.images)[0]]?.urls?.thumbnail ||
+                                     similar.image}
+                            variants={similar.images[Object.keys(similar.images)[0]]?.urls}
+                            alt={similar.name}
+                            className="w-full h-full object-contain"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                          />
+                        ) : similar.image ? (
+                          <LazyImage
                             src={similar.image}
                             alt={similar.name}
                             className="w-full h-full object-contain"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                           />
                         ) : (
                           <div className="text-gray-400 text-sm">No Image</div>

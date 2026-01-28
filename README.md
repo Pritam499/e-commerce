@@ -20,6 +20,19 @@ A full-stack e-commerce application with cart, checkout, and intelligent discoun
 
 - Generate discount codes (when conditions are met)
 - View statistics (items purchased, total amount, discount codes, total discount)
+- Upload and manage product images with automatic optimization
+
+### Image Optimization System
+
+- **AWS S3 Storage**: Secure cloud storage for product images
+- **CDN Integration**: CloudFront CDN for fast global image delivery
+- **Format Conversion**: Automatic PNG/JPG to WebP conversion for better compression
+- **Multiple Variants**: Auto-generation of thumbnail, medium, and large image sizes
+- **Lazy Loading**: Progressive image loading with blur placeholders
+- **Responsive Images**: Automatic srcset generation for different screen sizes
+- **Image Processing**: Sharp-based optimization with quality control
+- **Batch Upload**: Support for uploading multiple images simultaneously
+- **Progressive Enhancement**: Graceful fallback for older browsers
 
 ### Discount System
 
@@ -39,6 +52,46 @@ A full-stack e-commerce application with cart, checkout, and intelligent discoun
 - **Validation**: Zod schemas
 - **ID Generation**: CUID2 (string-based IDs)
 - **Containerization**: Docker
+- **Image Processing**: Sharp library for optimization and format conversion
+- **Cloud Storage**: AWS S3 with CloudFront CDN
+- **Search**: Elasticsearch with Trie data structure for auto-completion
+- **Caching**: Redis for distributed caching and rate limiting
+- **Real-time**: WebSocket for live inventory updates
+- **Monitoring**: Prometheus + Loki + Grafana + Vector stack
+- **Metrics**: Application performance monitoring with health checks
+- **Logging**: Structured JSON logging with security event tracking
+
+## Monitoring & Observability
+
+The application includes a comprehensive monitoring stack for production observability:
+
+### Components
+- **Prometheus**: Metrics collection and alerting
+- **Loki**: Log aggregation and querying
+- **Grafana**: Visualization dashboards and alerting
+- **Vector**: Advanced log processing and shipping
+- **Alertmanager**: Alert routing and notification management
+
+### Features
+- **Health Checks**: Multi-level health endpoints (`/health`, `/health/detailed`, `/health/ready`, `/health/live`)
+- **Metrics Collection**: HTTP request metrics, database performance, business KPIs
+- **Structured Logging**: JSON logs with Loki-compatible format
+- **Real-time Dashboards**: Pre-configured Grafana dashboards
+- **Alerting**: Automated alerts for critical issues and performance degradation
+- **Log Processing**: Advanced log filtering, sampling, and enrichment
+
+### Quick Start Monitoring
+```bash
+# Start monitoring stack
+docker-compose -f docker-compose.monitoring.yml up -d
+
+# Access services
+# Grafana: http://localhost:3000 (admin/admin)
+# Prometheus: http://localhost:9090
+# Loki: http://localhost:3100
+```
+
+See [`monitoring/README.md`](./monitoring/README.md) for detailed setup and configuration instructions.
 
 ## Prerequisites
 

@@ -1,18 +1,17 @@
 import { FastifyInstance } from "fastify";
 import { generateDiscountCodeForCustomer, getAvailableDiscountCodes, isEligibleForNthOrderDiscount } from "../../modules/discount/service";
+import { generateDiscountSchema, type GenerateDiscountInput } from "../../modules/discount/schema";
+import { authorize } from "../../lib/auth";
+import { validateBody } from "../../lib/validation";
 
 export async function adminDiscountRoutes(fastify: FastifyInstance) {
-  // Generate discount code for a customer
-  fastify.post("/api/admin/discounts/generate", async (request: any, reply) => {
+  // Generate discount code for a customer (admin only)
+  fastify.post<{ Body: GenerateDiscountInput }>("/api/admin/discounts/generate", {
+    preHandler: [fastify.authenticate, authorize(["admin"]), validateBody(generateDiscountSchema)],
+  }, async (request, reply) => {
     try {
-      const customerId = request.body?.customerId || request.query?.customerId;
-      if (!customerId || typeof customerId !== 'string') {
-        return reply.code(400).send({
-          success: false,
-          error: "Customer ID is required",
-        });
-      }
-      const result = await generateDiscountCodeForCustomer(customerId);
+      const { customerId } = request.body;
+      const result = await generateDiscountCodeForCustomer(customerId || request.user!.id);
       return reply.code(200).send({
         success: true,
         data: {
@@ -30,16 +29,11 @@ export async function adminDiscountRoutes(fastify: FastifyInstance) {
   });
 
   // Get available discount codes for a customer (for cart/checkout)
-  fastify.get("/api/discounts/available", async (request: any, reply) => {
+  fastify.get("/api/discounts/available", {
+    preHandler: [fastify.authenticate],
+  }, async (request, reply) => {
     try {
-      const customerId = request.query?.customerId;
-      if (!customerId || typeof customerId !== 'string') {
-        return reply.code(400).send({
-          success: false,
-          error: "Customer ID is required",
-        });
-      }
-      const codes = await getAvailableDiscountCodes(customerId);
+      const codes = await getAvailableDiscountCodes(request.user!.id);
       return reply.code(200).send({
         success: true,
         data: codes,
@@ -53,16 +47,11 @@ export async function adminDiscountRoutes(fastify: FastifyInstance) {
   });
 
   // Check if customer is eligible for nth order discount
-  fastify.get("/api/discounts/eligible", async (request: any, reply) => {
+  fastify.get("/api/discounts/eligible", {
+    preHandler: [fastify.authenticate],
+  }, async (request, reply) => {
     try {
-      const customerId = request.query?.customerId;
-      if (!customerId || typeof customerId !== 'string') {
-        return reply.code(400).send({
-          success: false,
-          error: "Customer ID is required",
-        });
-      }
-      const eligible = await isEligibleForNthOrderDiscount(customerId);
+      const eligible = await isEligibleForNthOrderDiscount(request.user!.id);
       return reply.code(200).send({
         success: true,
         data: { eligible },

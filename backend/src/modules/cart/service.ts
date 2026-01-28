@@ -1,37 +1,50 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "../../lib/db";
-import { cartItems, products, customers } from "../../drizzle/schema";
+import { cartItems, products, customers, users } from "../../drizzle/schema";
 import type { AddToCartInput } from "./schema";
-import { emitEvent, createEvent } from "../events/emitter";
-import { EVENT_TYPES } from "../events/types";
+import { createId } from "@paralleldrive/cuid2";
+import { randomUUID } from "crypto";
+import { encryptObject } from "../../lib/encryption";
+import { logger } from "../../lib/logger";
+import { wsService } from "../../lib/websocket-service";
 
-// Import CartSessionManager dynamically to avoid circular dependency
-let cartSessionManager: any = null;
-async function getCartSessionManager() {
-  if (!cartSessionManager) {
-    const { CartSessionManager } = await import("../cart-persistence/service");
-    cartSessionManager = new CartSessionManager();
-  }
-  return cartSessionManager;
-}
-
-async function ensureCustomerExists(customerId: string) {
+async function ensureCustomerExists(userId: string) {
   let customer = await db.query.customers.findFirst({
-    where: eq(customers.id, customerId),
+    where: eq(customers.userId, userId),
   });
 
   if (!customer) {
-    // Create customer with UUID
-    await db.insert(customers).values({
-      id: customerId,
-      name: `Customer ${customerId.substring(0, 8)}`,
-      email: `customer-${customerId}@example.com`,
-    }).onConflictDoNothing();
-    
-    // Verify customer was created
-    customer = await db.query.customers.findFirst({
-      where: eq(customers.id, customerId),
+    // Get user details
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
     });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Encrypt sensitive customer data
+    const encryptedData = encryptObject({
+      name: user.name,
+      email: user.email,
+    });
+
+    logger.database('INSERT', 'customers', { userId, customerId: 'new' });
+
+    await db.insert(customers).values({
+      id: randomUUID(), // Generate new UUID for customer
+      userId: userId,
+      name: encryptedData.name,
+      email: encryptedData.email,
+    });
+
+    customer = await db.query.customers.findFirst({
+      where: eq(customers.userId, userId),
+    });
+  }
+
+  if (!customer) {
+    throw new Error("Failed to create customer");
   }
 
   return customer;
@@ -40,15 +53,11 @@ async function ensureCustomerExists(customerId: string) {
 /**
  * Add item to cart or update quantity if item already exists
  */
-export async function addToCart(input: AddToCartInput) {
+export async function addToCart(input: AddToCartInput, userId: string) {
   const { productId, quantity } = input;
-  if (!input.customerId) {
-    throw new Error("Customer ID is required");
-  }
-  const customerId = input.customerId;
 
   // Ensure customer exists
-  await ensureCustomerExists(customerId);
+  const customer = await ensureCustomerExists(userId);
 
   // Check if product exists and is available
   const product = await db.query.products.findFirst({
@@ -63,207 +72,135 @@ export async function addToCart(input: AddToCartInput) {
     throw new Error("Insufficient stock");
   }
 
-  // Get cart session manager
-  const sessionManager = await getCartSessionManager();
+  // Check if item already exists in cart
+  const existingCartItem = await db.query.cartItems.findFirst({
+    where: and(
+      eq(cartItems.customerId, customer.id),
+      eq(cartItems.productId, productId)
+    ),
+  });
 
-  // Get current cart from Redis session
-  let currentCartItems = [];
-  try {
-    const sessionData = await sessionManager.getSession(customerId);
-    currentCartItems = sessionData?.items || [];
-  } catch (error) {
-    console.error('Failed to get cart session:', error);
-    // Continue with empty cart if session retrieval fails
-  }
-
-  // Find existing item in cart
-  const existingItemIndex = currentCartItems.findIndex(item => item.productId === productId);
-
-  let finalQuantity;
-
-  if (existingItemIndex >= 0) {
-    // Update quantity of existing item
-    finalQuantity = currentCartItems[existingItemIndex].quantity + quantity;
-    if (product.stock < finalQuantity) {
+  if (existingCartItem) {
+    // Update quantity
+    const newQuantity = existingCartItem.quantity + quantity;
+    if (product.stock < newQuantity) {
       throw new Error("Insufficient stock");
     }
 
-    currentCartItems[existingItemIndex].quantity = finalQuantity;
-    currentCartItems[existingItemIndex].updatedAt = new Date();
-  } else {
-    // Add new item to cart
-    finalQuantity = quantity;
-    currentCartItems.push({
+    await db
+      .update(cartItems)
+      .set({
+        quantity: newQuantity,
+        updatedAt: new Date(),
+      })
+      .where(eq(cartItems.id, existingCartItem.id));
+
+    // Broadcast cart update
+    wsService.broadcastCartUpdate({
+      userId,
+      action: 'update',
       productId,
-      quantity,
-      product, // Include product data for easier access
-      addedAt: new Date(),
-      updatedAt: new Date()
+      quantity: newQuantity - existingCartItem.quantity, // Quantity change
     });
-  }
 
-  // Update cart session in Redis
-  try {
-    await sessionManager.updateSession(customerId, currentCartItems);
-  } catch (error) {
-    console.error('Failed to update cart session:', error);
-    throw new Error('Failed to persist cart changes');
-  }
-
-  const result = {
-    id: `${customerId}_${productId}`, // Generate consistent ID for frontend compatibility
-    customerId,
-    productId,
-    quantity: finalQuantity,
-  };
-
-  // Emit cart item added event
-  try {
-    const totalValue = currentCartItems.reduce((sum, item) => {
-      return sum + (parseFloat(item.product?.price || '0') * item.quantity);
-    }, 0);
-
-    await emitEvent(createEvent(EVENT_TYPES.CART_ITEM_ADDED, {
-      customerId,
+    return {
+      id: existingCartItem.id,
+      customerId: customer.id,
       productId,
-      quantity: finalQuantity,
-      cartTotal: totalValue
-    }, {
-      source: 'cart-service',
-      userId: customerId,
-      customMetadata: {
+      quantity: newQuantity,
+    };
+  } else {
+    // Create new cart item
+    const [newCartItem] = await db
+      .insert(cartItems)
+      .values({
+        customerId: customer.id,
         productId,
-        addedQuantity: quantity,
-        finalQuantity,
-        totalCartValue: totalValue
-      }
-    }));
-  } catch (error) {
-    // Don't fail the cart operation if event emission fails
-    console.error('Failed to emit cart item added event:', error);
+        quantity,
+      })
+      .returning();
+
+    return newCartItem;
   }
 
-  return result;
+  // Broadcast cart update
+  wsService.broadcastCartUpdate({
+    userId,
+    action: 'add',
+    productId: input.productId,
+    quantity: input.quantity,
+  });
 }
 
 /**
- * Get cart items for a customer from Redis session
+ * Get cart items for a customer
  */
-export async function getCartItems(customerId: string) {
-  try {
-    const sessionManager = await getCartSessionManager();
-    const sessionData = await sessionManager.getSession(customerId);
-    const cartItems = sessionData?.items || [];
+export async function getCartItems(userId: string) {
+  // Find customer by userId
+  const customer = await ensureCustomerExists(userId);
 
-    // Enrich cart items with full product data (since Redis stores minimal data)
-    const enrichedItems = await Promise.all(
-      cartItems.map(async (item) => {
-        // Get full product data from database
-        const product = await db.query.products.findFirst({
-          where: eq(products.id, item.productId),
-          with: {
-            category: true,
-          },
-        });
+  const items = await db.query.cartItems.findMany({
+    where: eq(cartItems.customerId, customer.id),
+    with: {
+      product: {
+        with: {
+          category: true,
+        },
+      },
+    },
+  });
 
-        return {
-          id: `${customerId}_${item.productId}`, // Generate consistent ID
-          customerId,
-          productId: item.productId,
-          quantity: item.quantity,
-          product,
-          addedAt: item.addedAt || new Date(),
-          updatedAt: item.updatedAt || new Date(),
-        };
-      })
-    );
-
-    return enrichedItems;
-  } catch (error) {
-    console.error('Failed to get cart items from Redis:', error);
-    return [];
-  }
+  return items;
 }
 
 /**
  * Update cart item quantity
  */
-export async function updateCartItem(cartItemId: string, quantity: number, customerId: string) {
-  // Parse productId from cartItemId (format: customerId_productId)
-  const productId = cartItemId.split('_').slice(1).join('_');
+export async function updateCartItem(cartItemId: string, quantity: number, userId: string) {
+  // Find customer by userId
+  const customer = await ensureCustomerExists(userId);
 
-  if (!productId) {
-    throw new Error("Invalid cart item ID format");
-  }
+  const cartItem = await db.query.cartItems.findFirst({
+    where: and(
+      eq(cartItems.id, cartItemId),
+      eq(cartItems.customerId, customer.id)
+    ),
+    with: {
+      product: true,
+    },
+  });
 
-  // Get cart session manager
-  const sessionManager = await getCartSessionManager();
-
-  // Get current cart from Redis
-  const sessionData = await sessionManager.getSession(customerId);
-  const currentCartItems = sessionData?.items || [];
-
-  // Find the item in the cart
-  const itemIndex = currentCartItems.findIndex(item => item.productId === productId);
-
-  if (itemIndex === -1) {
+  if (!cartItem) {
     throw new Error("Cart item not found");
   }
 
-  // Get product data for stock validation
-  const product = await db.query.products.findFirst({
-    where: eq(products.id, productId),
-  });
-
-  if (!product) {
+  if (!cartItem.product) {
     throw new Error("Product not found for this cart item");
   }
 
   if (quantity === 0) {
     // Remove item if quantity is 0
-    currentCartItems.splice(itemIndex, 1);
-  } else {
-    // Check stock availability
-    if (product.stock < quantity) {
-      throw new Error(`Insufficient stock. Available: ${product.stock}, Requested: ${quantity}`);
-    }
-
-    // Update quantity
-    currentCartItems[itemIndex].quantity = quantity;
-    currentCartItems[itemIndex].updatedAt = new Date();
+    await db.delete(cartItems).where(eq(cartItems.id, cartItemId));
+    return null;
   }
 
-  // Update cart session in Redis
-  try {
-    await sessionManager.updateSession(customerId, currentCartItems);
-  } catch (error) {
-    console.error('Failed to update cart session:', error);
-    throw new Error('Failed to persist cart changes');
+  // Check stock availability - handle both number and string types
+  // Stock is stored as integer in DB, but might come as string from query
+  const productStock = typeof cartItem.product.stock === 'string' 
+    ? parseInt(cartItem.product.stock, 10) 
+    : Number(cartItem.product.stock);
+  
+  if (isNaN(productStock) || productStock < quantity) {
+    throw new Error(`Insufficient stock. Available: ${productStock}, Requested: ${quantity}`);
   }
 
-  // Emit cart item updated event
-  try {
-    const totalValue = currentCartItems.reduce((sum, item) => {
-      return sum + (parseFloat(item.product?.price || '0') * item.quantity);
-    }, 0);
-
-    await emitEvent(createEvent(EVENT_TYPES.CART_ITEM_UPDATED, {
-      customerId,
-      productId,
+  await db
+    .update(cartItems)
+    .set({
       quantity,
-      cartTotal: totalValue
-    }, {
-      source: 'cart-service',
-      userId: customerId,
-      customMetadata: {
-        productId,
-        newQuantity: quantity,
-        totalCartValue: totalValue
-      }
-    }));
-  } catch (error) {
-    console.error('Failed to emit cart item updated event:', error);
-  }
+      updatedAt: new Date(),
+    })
+    .where(eq(cartItems.id, cartItemId));
 
   return {
     id: cartItemId,
@@ -274,84 +211,45 @@ export async function updateCartItem(cartItemId: string, quantity: number, custo
 /**
  * Remove cart item
  */
-export async function removeCartItem(cartItemId: string, customerId: string) {
-  // Parse productId from cartItemId (format: customerId_productId)
-  const productId = cartItemId.split('_').slice(1).join('_');
+export async function removeCartItem(cartItemId: string, userId: string) {
+  // Find customer by userId
+  const customer = await ensureCustomerExists(userId);
 
-  if (!productId) {
-    throw new Error("Invalid cart item ID format");
-  }
+  const cartItem = await db.query.cartItems.findFirst({
+    where: and(
+      eq(cartItems.id, cartItemId),
+      eq(cartItems.customerId, customer.id)
+    ),
+  });
 
-  // Get cart session manager
-  const sessionManager = await getCartSessionManager();
-
-  // Get current cart from Redis
-  const sessionData = await sessionManager.getSession(customerId);
-  const currentCartItems = sessionData?.items || [];
-
-  // Find and remove the item
-  const itemIndex = currentCartItems.findIndex(item => item.productId === productId);
-
-  if (itemIndex === -1) {
+  if (!cartItem) {
     throw new Error("Cart item not found");
   }
 
-  currentCartItems.splice(itemIndex, 1);
+  // Broadcast cart update before deletion
+  wsService.broadcastCartUpdate({
+    userId,
+    action: 'remove',
+    productId: cartItem.productId,
+    quantity: cartItem.quantity,
+  });
 
-  // Update cart session in Redis
-  try {
-    await sessionManager.updateSession(customerId, currentCartItems);
-  } catch (error) {
-    console.error('Failed to update cart session:', error);
-    throw new Error('Failed to persist cart changes');
-  }
-
-  // Emit cart item removed event
-  try {
-    const totalValue = currentCartItems.reduce((sum, item) => {
-      return sum + (parseFloat(item.product?.price || '0') * item.quantity);
-    }, 0);
-
-    await emitEvent(createEvent(EVENT_TYPES.CART_ITEM_REMOVED, {
-      customerId,
-      productId,
-      cartTotal: totalValue
-    }, {
-      source: 'cart-service',
-      userId: customerId,
-      customMetadata: {
-        productId,
-        totalCartValue: totalValue
-      }
-    }));
-  } catch (error) {
-    console.error('Failed to emit cart item removed event:', error);
-  }
-
+  await db.delete(cartItems).where(eq(cartItems.id, cartItemId));
   return { success: true };
 }
 
 /**
  * Clear cart for a customer
  */
-export async function clearCart(customerId: string) {
-  try {
-    // Clear cart session in Redis by setting empty cart
-    await cartSessionManager.updateSession(customerId, []);
+export async function clearCart(userId: string) {
+  // Find customer by userId
+  const customer = await ensureCustomerExists(userId);
 
-    // Emit cart cleared event
-    await emitEvent(createEvent(EVENT_TYPES.CART_CLEARED, {
-      customerId,
-      cartTotal: 0
-    }, {
-      source: 'cart-service',
-      userId: customerId,
-      customMetadata: {
-        totalCartValue: 0
-      }
-    }));
-  } catch (error) {
-    console.error('Failed to clear cart session:', error);
-    throw new Error('Failed to clear cart');
-  }
+  // Broadcast cart clear
+  wsService.broadcastCartUpdate({
+    userId,
+    action: 'clear',
+  });
+
+  await db.delete(cartItems).where(eq(cartItems.customerId, customer.id));
 }

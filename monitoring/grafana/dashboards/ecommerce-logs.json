@@ -1,0 +1,131 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Ecommerce Application Logs",
+    "tags": ["ecommerce", "logs"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Application Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{service=\"ecommerce-api\"} | json",
+            "legendFormat": ""
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{service=\"ecommerce-api\", level=\"error\"} | json",
+            "legendFormat": ""
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Security Events",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"ecommerce-security\"} | json",
+            "legendFormat": ""
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Log Level Distribution",
+        "type": "barchart",
+        "targets": [
+          {
+            "expr": "count_over_time({service=\"ecommerce-api\"} [1h]) by (level)",
+            "legendFormat": "{{level}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Error Rate Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "count_over_time({service=\"ecommerce-api\", level=\"error\"} [5m])",
+            "legendFormat": "Errors per 5min"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "API Request Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{service=\"ecommerce-api\"} | json | method != \"\" | path != \"\"",
+            "legendFormat": ""
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+  }
+}

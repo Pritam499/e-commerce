@@ -1,0 +1,126 @@
+groups:
+  - name: ecommerce_api_alerts
+    rules:
+      # API Health Check Alerts
+      - alert: ApiDown
+        expr: up{job="ecommerce-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ecommerce API is down"
+          description: "Ecommerce API has been down for more than 1 minute."
+
+      - alert: ApiHighErrorRate
+        expr: rate(http_requests_total{job="ecommerce-api", status_code=~"5.."}[5m]) / rate(http_requests_total{job="ecommerce-api"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on Ecommerce API"
+          description: "Error rate is {{ $value }}% (5% threshold)."
+
+      - alert: ApiHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="ecommerce-api"}[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on Ecommerce API"
+          description: "95th percentile latency is {{ $value }}s (2s threshold)."
+
+      # Database Alerts
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database has been down for more than 1 minute."
+
+      - alert: DatabaseHighConnections
+        expr: pg_stat_activity_count{datname="ecommerce"} > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections"
+          description: "Database has {{ $value }} active connections."
+
+      # Redis Alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis cache has been down for more than 1 minute."
+
+      # System Alerts
+      - alert: HighCpuUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%."
+
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}%."
+
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is below 10%."
+
+      # Business Logic Alerts
+      - alert: NoOrdersInLastHour
+        expr: rate(business_operations_total{operation="order_created"}[1h]) == 0
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "No orders in the last hour"
+          description: "No orders have been created in the last hour."
+
+      - alert: HighRateLimitHits
+        expr: rate(rate_limit_hits_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate limit hits"
+          description: "Rate limit being hit {{ $value }} times per second."
+
+      # Image Processing Alerts
+      - alert: SlowImageProcessing
+        expr: histogram_quantile(0.95, rate(image_processing_duration_seconds_bucket[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow image processing"
+          description: "95th percentile image processing time is {{ $value }}s."
+
+      # Search Performance Alerts
+      - alert: SlowSearchQueries
+        expr: histogram_quantile(0.95, rate(elasticsearch_query_duration_seconds_bucket[5m])) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow search queries"
+          description: "95th percentile search query time is {{ $value }}s."

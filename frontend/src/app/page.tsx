@@ -6,37 +6,25 @@ import {
   fetchProducts,
   getCart,
   updateCartItem,
-  fetchRecommendations,
 } from "@/src/lib/api";
 import Link from "next/link";
 import CartPreview from "@/src/components/CartPreview";
-import RecommendationPopup from "@/src/components/RecommendationPopup";
+import SearchBar from "@/src/components/SearchBar";
+import ProductInventory from "@/src/components/ProductInventory";
 import {
   ProductCardSkeleton,
   PageSkeleton,
 } from "@/src/components/LoadingSkeleton";
-import type { Product, CartItem, Recommendation, Pagination } from "@/src/lib/types";
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-    hasNext: false,
-    hasPrev: false,
-  });
+  const [products, setProducts] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<any>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
+  const [loading, setLoading] = useState<{ [key: number]: boolean }>({});
   const [message, setMessage] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [showCartPreview, setShowCartPreview] = useState(false);
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [showRecommendations, setShowRecommendations] = useState(false);
-  const [recommendationPosition, setRecommendationPosition] = useState({ top: 0, left: 0 });
-  const [hoveredProductId, setHoveredProductId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProducts(currentPage);
@@ -49,8 +37,8 @@ export default function Home() {
       const result = await fetchProducts(page, 10);
       setProducts(result.products);
       setPagination(result.pagination);
-    } catch (error) {
-      setMessage(`Error loading products: ${(error as Error).message}`);
+    } catch (error: any) {
+      setMessage(`Error loading products: ${error.message}`);
     } finally {
       setLoadingProducts(false);
     }
@@ -65,12 +53,12 @@ export default function Home() {
     }
   };
 
-  const getCartQuantity = (productId: string) => {
-    const item = cartItems.find((item) => item.productId === productId);
+  const getCartQuantity = (productId: number) => {
+    const item = cartItems.find((item: any) => item.productId === productId);
     return item ? item.quantity : 0;
   };
 
-  const handleAddToCart = async (productId: string) => {
+  const handleAddToCart = async (productId: number) => {
     setLoading({ ...loading, [productId]: true });
     setMessage("");
     try {
@@ -79,19 +67,19 @@ export default function Home() {
       setMessage("Item added to cart!");
       setShowCartPreview(true);
       setTimeout(() => setMessage(""), 2000);
-    } catch (error) {
-      setMessage(`Error: ${(error as Error).message}`);
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`);
     } finally {
       setLoading({ ...loading, [productId]: false });
     }
   };
 
   const handleUpdateQuantity = async (
-    productId: string,
+    productId: number,
     newQuantity: number
   ) => {
     const cartItem = cartItems.find(
-      (item) => item.productId === productId
+      (item: any) => item.productId === productId
     );
     if (!cartItem) {
       await handleAddToCart(productId);
@@ -105,8 +93,8 @@ export default function Home() {
       if (newQuantity > cartItem.quantity) {
         setShowCartPreview(true);
       }
-    } catch (error) {
-      setMessage(`Error: ${(error as Error).message}`);
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`);
     } finally {
       setLoading({ ...loading, [productId]: false });
     }
@@ -115,33 +103,6 @@ export default function Home() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleProductHover = async (productId: string, event: React.MouseEvent) => {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    setRecommendationPosition({
-      top: rect.top + window.scrollY - 10,
-      left: rect.right + 10,
-    });
-    setHoveredProductId(productId);
-
-    // Debounce the fetch
-    setTimeout(async () => {
-      if (hoveredProductId === productId) {
-        try {
-          const recs = await fetchRecommendations(productId);
-          setRecommendations(recs);
-          setShowRecommendations(true);
-        } catch (error) {
-          // Silently fail
-        }
-      }
-    }, 500);
-  };
-
-  const handleProductLeave = () => {
-    setHoveredProductId(null);
-    setShowRecommendations(false);
   };
 
   return (
@@ -170,6 +131,15 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {/* Search Bar */}
+            <div className="mb-8 flex justify-center">
+              <SearchBar
+                placeholder="Search products..."
+                showSuggestions={true}
+                className="max-w-md w-full"
+              />
+            </div>
+
             {/* Products Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
               {products.map((product) => {
@@ -178,8 +148,6 @@ export default function Home() {
                   <div
                     key={product.id}
                     className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
-                    onMouseEnter={(e) => handleProductHover(product.id, e)}
-                    onMouseLeave={handleProductLeave}
                   >
                     <Link href={`/products/${product.id}`}>
                       <div className="aspect-square bg-gray-100 p-4 flex items-center justify-center">
@@ -208,11 +176,11 @@ export default function Home() {
                           <span className="text-xl font-bold text-gray-900">
                             ${product.price}
                           </span>
-                          {product.stock > 0 && (
-                            <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">
-                              In Stock
-                            </span>
-                          )}
+                          <ProductInventory
+                            productId={product.id}
+                            initialStock={product.stock}
+                            showRealTimeIndicator={true}
+                          />
                         </div>
                       </div>
                     </Link>
@@ -342,14 +310,6 @@ export default function Home() {
           </>
         )}
       </div>
-
-      {/* Recommendations Popup */}
-      <RecommendationPopup
-        recommendations={recommendations}
-        isVisible={showRecommendations}
-        onClose={() => setShowRecommendations(false)}
-        position={recommendationPosition}
-      />
 
       {/* Cart Preview */}
       <CartPreview

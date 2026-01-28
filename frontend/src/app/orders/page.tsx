@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getOrders } from "@/src/lib/api";
+import { getOrders, requestDataExport, requestDataDeletion } from "@/src/lib/api";
 import Link from "next/link";
-import type { Order } from "@/src/lib/types";
+import OrderStatusTracker from "@/src/components/OrderStatusTracker";
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -19,11 +20,33 @@ export default function OrdersPage() {
       setLoading(true);
       const response = await getOrders();
       setOrders(response.data || []);
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+      return;
+    }
+
+    setActionLoading(orderId);
+    try {
+      // Note: We'll need to implement the cancel order API endpoint
+      // For now, this is a placeholder
+      alert('Order cancellation feature coming soon!');
+    } catch (err: any) {
+      alert('Failed to cancel order: ' + err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReturnItems = async (orderId: string) => {
+    // This would open a modal or form for selecting items to return
+    alert('Return items feature coming soon!');
   };
 
   if (loading) {
@@ -95,22 +118,29 @@ export default function OrdersPage() {
                             ${Number(order.total).toFixed(2)}
                           </div>
                         </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            order.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {order.status}
-                        </span>
+                        <div className="w-48">
+                          <OrderStatusTracker
+                            orderId={order.id}
+                            initialStatus={order.status}
+                            onStatusChange={(newStatus, previousStatus) => {
+                              // Update local state
+                              setOrders(prevOrders =>
+                                prevOrders.map(o =>
+                                  o.id === order.id
+                                    ? { ...o, status: newStatus }
+                                    : o
+                                )
+                              );
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="p-6">
                     <div className="space-y-4">
-                      {order.orderItems?.map((item) => (
+                      {order.orderItems?.map((item: any) => (
                         <div
                           key={item.id}
                           className="flex items-center gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"
@@ -168,6 +198,26 @@ export default function OrdersPage() {
                       <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
                         <span>Total:</span>
                         <span>${Number(order.total).toFixed(2)}</span>
+                      </div>
+
+                      {/* Order Actions */}
+                      <div className="flex gap-2 mt-4">
+                        {(order.status === 'pending' || order.status === 'processing') && (
+                          <button
+                            onClick={() => handleCancelOrder(order.id)}
+                            className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            Cancel Order
+                          </button>
+                        )}
+                        {order.status === 'completed' && (
+                          <button
+                            onClick={() => handleReturnItems(order.id)}
+                            className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                          >
+                            Return Items
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
